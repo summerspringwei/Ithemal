@@ -1,4 +1,5 @@
-FROM debian:stretch
+# FROM debian:stretch
+FROM ubuntu:20.04
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
         build-essential             \
@@ -23,19 +24,28 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
         zip
 
 # install mysql
-RUN wget -O /tmp/RPM-GPG-KEY-mysql https://repo.mysql.com/RPM-GPG-KEY-mysql && \
-        apt-key add /tmp/RPM-GPG-KEY-mysql && \
-        /bin/echo -e "deb http://repo.mysql.com/apt/debian/ stretch mysql-5.7\ndeb-src http://repo.mysql.com/apt/debian/ stretch mysql-5.7" > /etc/apt/sources.list.d/mysql.list && \
-        apt-get update && \
+# RUN wget -O /tmp/RPM-GPG-KEY-mysql https://repo.mysql.com/RPM-GPG-KEY-mysql && \
+#         apt-key add /tmp/RPM-GPG-KEY-mysql && \
+#         /bin/echo -e "deb http://repo.mysql.com/apt/debian/ stretch mysql-5.7\ndeb-src http://repo.mysql.com/apt/debian/ stretch mysql-5.7" > /etc/apt/sources.list.d/mysql.list && \
+#         apt-get update && \
+#         DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server
+
+RUN apt-get update && \
         DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server
+
 
 COPY docker_my.cnf /etc/my.cnf
 
-RUN wget --quiet -O /tmp/install_conda.sh https://repo.continuum.io/miniconda/Miniconda2-4.6.14-Linux-x86_64.sh && \
+
+# RUN wget --quiet -O /tmp/install_conda.sh https://repo.continuum.io/miniconda/Miniconda2-4.6.14-Linux-x86_64.sh && \
+#         sh /tmp/install_conda.sh -b -p /opt/conda && \
+#         rm /tmp/install_conda.sh
+
+RUN wget --quiet -O /tmp/install_conda.sh https://repo.anaconda.com/miniconda/Miniconda3-py39_23.5.1-0-Linux-x86_64.sh && \
         sh /tmp/install_conda.sh -b -p /opt/conda && \
         rm /tmp/install_conda.sh
 
-COPY env /tmp/docker_env
+COPY conda_env /tmp/docker_env
 RUN /opt/conda/bin/conda create --name ithemal --file /tmp/docker_env
 
 RUN curl -sL https://github.com/DynamoRIO/dynamorio/releases/download/release_7_0_0_rc1/DynamoRIO-Linux-7.0.0-RC1.tar.gz | tar xz -C /opt
@@ -45,6 +55,9 @@ RUN chown -R root:root "${DYNAMORIO_HOME}" && \
         find "${DYNAMORIO_HOME}" -type d -exec chmod 755 {} \; && \
         find "${DYNAMORIO_HOME}" -type f -exec chmod 644 {} \;
 
+# RUN bash -lc "which python && which pip"
+# RUN bash -lc "pip3 install --upgrade --user torch"
+
 RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
@@ -53,7 +66,11 @@ ENV LC_ALL en_US.UTF-8
 ARG HOST_UID=1000
 ENV HOST_UID $HOST_UID
 
-RUN groupadd -g 1000 ithemal && useradd -m -s /bin/bash -r -u $HOST_UID -g ithemal ithemal
+
+RUN apt-get install -y pkg-config libmysqlclient-dev mariadb-server-10.3
+
+RUN groupadd -g 1000 ithemal && useradd -m -s /bin/bash -r -u ${HOST_UID} -g ithemal ithemal
+# RUN useradd -m -s /bin/bash -r -U -p ithemal ithemal && usermod -aG sudo ithemal
 USER ithemal
 WORKDIR /home/ithemal
 
@@ -66,8 +83,12 @@ RUN /bin/echo 'export PATH=/opt/conda/bin:$PATH' >> /home/ithemal/.bash_profile 
 RUN /bin/echo 'export PATH=/opt/conda/bin:$PATH' >> /home/ithemal/.bashrc && \
         /bin/echo 'source activate ithemal' >> /home/ithemal/.bashrc && \
         /bin/echo 'export PYTHONPATH="/home/ithemal/ithemal/learning/pytorch"' >> /home/ithemal/.bashrc
-
 RUN bash -lc 'pip install --upgrade --user pyhamcrest pip; jupyter notebook --generate-config'
+RUN bash -lc 'pip install --upgrade --user torch==1.3.0 '
+RUN bash -lc "pip install torchvision==0.4.1 torchaudio==0.3.0"
+RUN bash -lc 'pip3 install --upgrade --user pyhamcrest'
+RUN bash -lc 'pip3 install --upgrade --user mysql'
 
 COPY notebook_config.patch /tmp/_docker_notebook_conf.patch
 RUN patch .jupyter/jupyter_notebook_config.py < /tmp/_docker_notebook_conf.patch
+

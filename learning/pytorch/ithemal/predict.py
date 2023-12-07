@@ -85,6 +85,7 @@ def predict_raw(model_arg, data_arg, verbose, parallel):
             if not line:
                 continue
             try:
+                print(data, line)
                 datum = datum_of_code(data, line, verbose)
             except:
                 output_q.put('{},fail'.format(line))

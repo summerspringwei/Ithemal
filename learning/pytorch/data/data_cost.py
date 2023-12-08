@@ -98,11 +98,14 @@ class DataInstructionEmbedding(Data):
                             dsts.append(int(dst.text))
 
                     raw_instr.append('<END>')
+                    logging.info("raw_instr:{}".format(raw_instr))
+                    logging.info("list(map(hot_idxify, raw_instr)): {}".format(list(map(hot_idxify, raw_instr))))
                     raw_instrs.append(list(map(hot_idxify, raw_instr)))
                     instrs.append(ut.Instruction(opcode, srcs, dsts, len(instrs)))
                     instrs[-1].intel = m_code_intel
 
             block = ut.BasicBlock(instrs)
+            # Set instructions parents and childrens
             block.create_dependencies()
             datum = DataItem(raw_instrs, timing, block, code_id)
             self.data.append(datum)

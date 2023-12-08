@@ -1,6 +1,5 @@
 # FROM debian:stretch
-# FROM ubuntu:20.04
-FROM nvcr.io/nvidia/pytorch:23.11-py3
+FROM ubuntu:20.04
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
         build-essential             \

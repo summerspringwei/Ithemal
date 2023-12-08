@@ -305,7 +305,7 @@ class ModelSequentialRNNComplex(nn.Module):
         else:
             embeds = self.final_embeddings(torch.LongTensor(item.x))
 
-
+        # print("embeds: ", embeds)
         #prepare for lstm - seq len, batch size, embedding size
         seq_len = embeds.shape[0]
         embeds_for_lstm = embeds.unsqueeze(1)

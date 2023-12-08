@@ -2,6 +2,15 @@ import sys
 import os
 sys.path.append(os.path.join(os.environ['ITHEMAL_HOME'], 'learning', 'pytorch'))
 
+import logging
+
+# Configure the logging module
+logging.basicConfig(
+    level=logging.DEBUG,  # Set the desired logging level
+    format='%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
 from enum import Enum, unique
 import torch
 import torch.nn as nn
@@ -413,7 +422,7 @@ class RNN(AbstractGraphModule):
             final_state = final_state_packed[0]
         else:
             final_state = final_state_packed
-
+        logging.info("final_state: {}".format(final_state.shape))
         return self.linear(final_state.squeeze()).squeeze()
 
 
@@ -442,7 +451,10 @@ class RNN(AbstractGraphModule):
                         token_state = token_state + parent_state
 
             tokens = self.final_embeddings(torch.LongTensor(token_inputs)).unsqueeze(1)
+            logging.info("tokens: {}".format(tokens.shape))
             output, state = self.token_rnn(tokens, token_state)
+            logging.info("output: {}".format(output.shape))
+            logging.info("state: {}".format(state))
             token_output_map[instr] = output
             token_state_map[instr] = state
 
@@ -456,21 +468,29 @@ class RNN(AbstractGraphModule):
             return self.linear(final_state.squeeze()).squeeze()
 
         instr_chain = torch.stack([token_output_map[instr][-1] for instr in item.block.instrs])
-
+        logging.info("instr_chain: {}".format(instr_chain.shape))
         if self.params.hierarchy_type == RnnHierarchyType.DENSE:
+            logging.info("Dense")
             instr_chain = torch.stack([state for instr in item.block.instrs for state in token_output_map[instr]])
         elif self.params.hierarchy_type == RnnHierarchyType.LINEAR_MODEL:
+            logging.info("instr_chain: {}".format(instr_chain.shape))
+            out = []
+            for st in instr_chain:
+                instr_out = self.linear(st).squeeze()
+                logging.info("instr_out:{}".format(instr_out.shape))
+                out.append(instr_out)
+                
             return sum(
-                self.linear(st).squeeze()
-                for st in instr_chain
+                out
             )
         elif self.params.hierarchy_type == RnnHierarchyType.MOP_MODEL:
+            logging.info("MOP_MODEL")
             preds = torch.stack([
                 self.pred_of_instr_chain(torch.stack([token_output_map[instr][-1] for instr in instrs]))
                 for instrs in item.block.paths_of_block()
             ])
             return torch.max(preds)
-
+        logging.info("default:484")
         return self.pred_of_instr_chain(instr_chain)
 
 class Fasthemal(AbstractGraphModule):

@@ -16,6 +16,13 @@ import sys
 import threading
 import torch
 import warnings
+import logging
+logging.basicConfig(
+    level=logging.DEBUG,  # Set the desired logging level
+    format='%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
 
 START_MARKER = 'bb6f000000646790'.decode('hex')
 END_MARKER = 'bbde000000646790'.decode('hex')
@@ -29,6 +36,8 @@ def load_model_and_data(model_file, model_data_file):
     
     state_dict = torch.load(model_data_file)
     model_dict = model.state_dict()
+    # for k, v in model_dict.items():
+    #     print("model state dict", k, v)
     new_model_dict = {k: v for (k, v) in state_dict['model'].items() if k in model_dict}
     model_dict.update(new_model_dict)
     model.load_state_dict(model_dict)
@@ -43,7 +52,7 @@ def datum_of_code(data, block_hex, verbose):
         intel = subprocess.check_output([_TOKENIZER, block_hex, '--intel'])
     else:
         intel = _fake_intel
-
+    print("xlm:", xml)
     data.raw_data = [(-1, -1, intel, xml)]
     data.data = []
     data.prepare_data(fixed=True, progress=False)
@@ -78,7 +87,9 @@ def predict_raw(model_arg, data_arg, verbose, parallel):
 
     def queue_worker():
         (model, data) = load_model_and_data(model_arg, data_arg)
+        logging.info("model: {}".format(model))
         while True:
+            logging.info("please input:")
             line = input_q.get()
             if line is None:
                 return
@@ -87,6 +98,7 @@ def predict_raw(model_arg, data_arg, verbose, parallel):
             try:
                 print(data, line)
                 datum = datum_of_code(data, line, verbose)
+                logging.info("datum.x: {}".format(datum.x))
             except:
                 output_q.put('{},fail'.format(line))
                 continue
